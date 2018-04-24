@@ -6,7 +6,7 @@ This is the improved FR plugin for IDA Pro 6.x, that fixes a number of the probl
 ## Authors
 * Un-named author of original IDA SDK module.  Ilfak or one of the IDA guys maybe?  A very bored unnamed assembly jockey?
 * Simeon Pilgrim -- see some of his other fun items
-  * (https://github.com/simeonpilgrim/)[on github right here].
+  *  [on github right here](https://github.com/simeonpilgrim).
 * Rule 34 of ancient Pentax hacking days for giving me issues he was still having.
 * GordonHarley
 
