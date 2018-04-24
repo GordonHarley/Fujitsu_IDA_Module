@@ -108,6 +108,9 @@ enum nameNum ENUM_SIZE(uint16)
     fr_enter,               // enter function
     fr_leave,               // leave function
     fr_xchb,                // exchange byte data
+    //fr_srch0,               // search first zero bit position distance from MSB
+    //fr_srch1,               // search first one bit position distance from MSB
+    //fr_srchc,               // search first bit value change position distance from MSB
     fr_last                 // last instruction
 };
 

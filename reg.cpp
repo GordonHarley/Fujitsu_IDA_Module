@@ -2,6 +2,8 @@
 #include "fr.hpp"
 #include <srarea.hpp>
 
+//#define IDA65
+
 // The netnode helper.
 // Using this node we will save current configuration information in the
 // IDA database.
@@ -77,12 +79,81 @@ static const char *const RegNames[] =
   "ds"
 };
 
+const char *const savedRegNames[] =
+{
+  // general purpose registers :
+
+  "sR0",
+  "sR1",
+  "sR2",
+  "sR3",
+  "sR4",
+  "sR5",
+  "sR6",
+  "sR7",
+  "sR8",
+  "sR9",
+  "sR10",
+  "sR11",
+  "sR12",
+  "sR13",
+  "sR14",
+  "sR15",
+
+  // coprocessor registers :
+
+  "sCr0",
+  "sCcr1",
+  "sCcr2",
+  "sCcr3",
+  "sCcr4",
+  "sCcr5",
+  "sCcr6",
+  "sCcr7",
+  "sCcr8",
+  "sCcr9",
+  "sCcr10",
+  "sCcr11",
+  "sCcr12",
+  "sCcr13",
+  "sCcr14",
+  "sCcr15",
+
+  // dedicated registers :
+
+  "sPc",        // program counter
+  "sPs",        // program status
+  "sTbr",       // table base register
+  "sRp",        // return pointer
+  "sSsp",       // system stack pointer
+  "sSp",       // user stack pointer
+  "sMdl",       // multiplication/division register (LOW)
+  "sMdh",       // multiplication/division register (HIGH)
+
+  // system use dedicated registers
+  "reserved6",
+  "reserved7",
+  "reserved8",
+  "reserved9",
+  "reserved10",
+  "reserved11",
+  "reserved12",
+  "reserved13",
+  "reserved14",
+  "reserved15",
+
+  // these 2 registers are required by the IDA kernel :
+
+  "cs",
+  "ds"
+};
+
 static size_t numports = 0;
 static ioport_t *ports = NULL;
 char device[MAXSTR] = "";
 
 // include IO common routines (such as set_device_name, apply_config_file, etc..)
-#include "../iocommon.cpp"
+#include "iocommon.cpp" // "../iocommon.cpp"
 
 inline static void idaapi choose_device(TView *[] = NULL, int = 0)
 {
@@ -103,52 +174,183 @@ const ioport_t *find_sym(ea_t address)
 // Here you may take desired actions upon some kernel events
 static int idaapi notify(processor_t::idp_notify msgid, ...)
 {
-    va_list va;
-    va_start(va, msgid);
+	va_list va;
+	va_start(va, msgid);
 
-    // A well behavior processor module should call invoke_callbacks()
-    // in his notify() function. If this function returns 0, then
-    // the processor module should process the notification itself
-    // Otherwise the code should be returned to the caller:
+	// A well behavior processor module should call invoke_callbacks()
+	// in his notify() function. If this function returns 0, then
+	// the processor module should process the notification itself
+	// Otherwise the code should be returned to the caller:
 
-    int code = invoke_callbacks(HT_IDP, msgid, va);
-    if ( code )
-      return code;
+	int code = invoke_callbacks(HT_IDP, msgid, va);
+	if ( code ) return code;
 
-    switch ( msgid )
-    {
-        case processor_t::init:
-            inf.mf = 1;
-            helper.create("$ fr");
-        default:
-            break;
+	switch ( msgid )
+	{
+	case processor_t::init:
+		inf.mf = 1;
+		helper.create("$ fr");
+	default:
+		break;
 
-        case processor_t::term:
-            free_ioports(ports, numports);
-            break;
+	case processor_t::term:
+		free_ioports(ports, numports);
+		break;
 
-        case processor_t::newfile:
-            choose_device();
-            set_device_name(device, IORESP_ALL);
-            break;
+	case processor_t::newfile:
+		choose_device();
+		set_device_name(device, IORESP_ALL);
+		break;
 
-        case processor_t::oldfile:
-            {
-              char buf[MAXSTR];
-              if ( helper.supval(-1, buf, sizeof(buf)) > 0 )
-                set_device_name(buf, IORESP_NONE);
-            }
-            break;
+	case processor_t::oldfile:
+		{
+			char buf[MAXSTR];
+			if ( helper.supval(-1, buf, sizeof(buf)) > 0 )
+				set_device_name(buf, IORESP_NONE);
+		}
+		break;
 
-        case processor_t::closebase:
-        case processor_t::savebase:
-            helper.supset(-1, device);
-            break;
-    }
+	case processor_t::closebase:
+	case processor_t::savebase:
+		helper.supset(-1, device);
+		break;
+
+	case processor_t::is_basic_block_end:
+		return is_basic_block_end() ? 2 : 0;
+
+
+#ifdef FR_TYPEINFO_SUPPORT
+		// +++ TYPE CALLBACKS
+	case processor_t::max_ptr_size:
+		return 4+1;
+
+	case processor_t::get_default_enum_size: // get default enum size
+		// args:  cm_t cm
+		// returns: sizeof(enum)
+		{
+			//        cm_t cm        =  va_argi(va, cm_t);
+			return 1; // inf.cc.size_e;
+		}
+
+	case processor_t::based_ptr:
+		{
+			uint ptrt      = va_arg(va, unsigned int); qnotused(ptrt);
+			char **ptrname = va_arg(va, char **);
+			*ptrname = NULL;
+			return 0;                       // returns: size of type
+		}
+
+	case processor_t::get_stkarg_offset2:
+		// get offset from SP to the first stack argument
+		// args: none
+		// returns: the offset+2
+		return 0x00 + 2;
+
+	case processor_t::calc_cdecl_purged_bytes2:
+		// calculate number of purged bytes after call
+		{
+			//ea_t ea = va_arg(va, ea_t);
+			return 0x00 + 2;
+		}
+
+#endif // FR_TYPEINFO_SUPPORT 
+#ifdef FR_TINFO_SUPPORT
+	case processor_t::decorate_name3:
+		{
+			qstring *outbuf  = va_arg(va, qstring *);
+			const char *name = va_arg(va, const char *);
+			bool mangle      = va_argi(va, bool);
+			cm_t cc          = va_argi(va, cm_t);
+			return gen_decorate_name3(outbuf, name, mangle, cc) ? 2 : 0;
+		}
+
+	case processor_t::calc_retloc3:
+		//msg("calc_retloc3\n");
+		{
+			const tinfo_t *type = va_arg(va, const tinfo_t *);
+			cm_t cc             = va_argi(va, cm_t);
+			argloc_t *retloc    = va_arg(va, argloc_t *);
+			return calc_fr_retloc(*type, cc, retloc) ? 2 : -1;
+		}
+		break;  
+
+	case processor_t::calc_varglocs3:
+		return 1; // not implemented
+		break;
+
+	case processor_t::calc_arglocs3:
+		{
+			//msg("calc_arglocs3\n");
+			func_type_data_t *fti = va_arg(va, func_type_data_t *);
+			return calc_fr_arglocs(fti) ? 2 : -1;
+		}
+
+	case processor_t::use_stkarg_type3:
+		{
+			//msg("use_stkarg_type3\n");
+			ea_t ea               = va_arg(va, ea_t);
+			const funcarg_t *arg  = va_arg(va, const funcarg_t* );
+		}
+		return false;
+		break;
+
+	case processor_t::use_regarg_type3:
+		//msg("use_regarg_type3\n");
+		{
+			int *used                 = va_arg(va, int *);
+			ea_t ea                   = va_arg(va, ea_t);
+			const funcargvec_t *rargs = va_arg(va, const funcargvec_t *);
+			*used = use_fr_regarg_type(ea, *rargs);
+			return 2;
+		}
+		break;
+
+	case processor_t::use_arg_types3:
+		{
+			ea_t ea               = va_arg(va, ea_t);
+			func_type_data_t *fti = va_arg(va, func_type_data_t *);
+			funcargvec_t *rargs   = va_arg(va, funcargvec_t *);
+			use_fr_arg_types(ea, fti, rargs);
+			return 2;
+		}
+#ifdef IDA65
+	case processor_t::get_fastcall_regs2:
+	case processor_t::get_varcall_regs2:
+		{
+			const int **regs = va_arg(va, const int **);
+			return get_fr_fastcall_regs(regs) + 2;
+		}
+
+	case processor_t::get_thiscall_regs2:
+		{
+			const int **regs = va_arg(va, const int **);
+			*regs = NULL;
+			return 2;
+		}
+#else
+	case processor_t::get_fastcall_regs3:
+	case processor_t::get_varcall_regs3:
+		{
+			const int *regs;
+			get_fr_fastcall_regs(&regs);
+			callregs_t *callregs = va_arg(va, callregs_t *);
+			callregs->set(ARGREGS_INDEPENDENT, regs, NULL);
+			return callregs->nregs + 2;
+		}
+
+	case processor_t::get_thiscall_regs3:
+		{
+			callregs_t *callregs = va_arg(va, callregs_t *);
+			callregs->reset();
+			return 2;
+		}
+#endif IDA65
+#endif // FR_TINFO_SUPPORT
+	}
 
     va_end(va);
 
-    return 1;
+    return(1);
 }
 
 const char *idaapi set_idp_options(
@@ -325,7 +527,17 @@ processor_t LPH =
       IDP_INTERFACE_VERSION,// version
       PLFM_FR,              // id
       PR_RNAMESOK           // can use register names for byte names
-      |PR_BINMEM,           // The module creates RAM/ROM segments for binary files
+      | PR_USE32            // 32-bit processor
+      | PR_DEFSEG32         // create 32-bit segments by default
+#ifdef FR_TYPEINFO_SUPPORT
+      | PR_TYPEINFO         // Support the simple type system notifications
+#endif // FR_TYPEINFO_SUPPORT
+#ifdef FR_TINFO_SUPPORT
+      | PR_TINFO            // Support the complex type system notifications
+      | PR_USE_ARG_TYPES
+#endif // FR_TINFO_SUPPORT
+      | PR_DELAYED
+      | PR_BINMEM,          // The module creates RAM/ROM segments for binary files
                             // (the kernel shouldn't ask the user about their sizes and addresses)
       8,                    // 8 bits in a byte for code segments
       8,                    // 8 bits in a byte for other segments
@@ -356,10 +568,10 @@ processor_t LPH =
       outop,                // generate a text representation of an operand
       intel_data,           // generate a text representation of a data item
       NULL,                 // compare operands
-      NULL,                 // can an operand have a type?
+      can_have_type,        // can an operand have a type?
 
       qnumber(RegNames),    // Number of registers
-      RegNames,             // Regsiter names
+      RegNames,             // Register names
       NULL,                 // get abstract register
 
       0,                    // Number of register files
@@ -387,12 +599,12 @@ processor_t LPH =
                             // normal float
                             // normal double
                             // long double
-      NULL,                 // int (*is_switch)(switch_info_t *si);
+      fr_is_switch,         // int (*is_switch)(switch_info_t *si);
       NULL,                 // int32 (*gen_map_file)(FILE *fp);
       NULL,                 // ea_t (*extract_address)(ea_t ea,const char *string,int x);
       is_sp_based,          // int (*is_sp_based)(op_t &x);
       create_func_frame,    // int (*create_func_frame)(func_t *pfn);
-      NULL,                 // int (*get_frame_retsize(func_t *pfn)
+      get_frame_retsize,    // int (*get_frame_retsize(func_t *pfn)
       NULL,                 // void (*gen_stkvar_def)(char *buf,const member_t *mptr,int32 v);
       gen_spcdef,           // Generate text representation of an item in a special segment
       fr_ret,               // Icode of return instruction. It is ok to give any of possible return instructions

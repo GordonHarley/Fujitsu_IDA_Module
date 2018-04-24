@@ -71,8 +71,7 @@ enum
     O_reglist       // register list                            (R0, R1, R2, ...)
 };
 
-static int invert_word(int word)
-{
+static int invert_word(int word) {
     int new_word = 0;
 
     new_word |= (word & 0x000F) >> 0;
@@ -104,6 +103,11 @@ struct opcode_t
 #define I_ADDR_W           OP_ADDR_W
 #define I_IMM_2            0x00001000      // imm = imm * 2
 #define I_IMM_4            0x00002000      // imm = imm * 4
+#define I_IMM_16           0x00004000      // imm = imm + 16
+#define I_MEM_8            0x00010000      // load/store 8 bytes to/from memptr
+#define I_MEM_16           0x00020000      // load/store 16 bytes to/from memptr
+#define I_MEM_32           0x00040000      // load/store 32 bytes to/from memptr
+
   int flags;
 
   inline bool swap_ops(void) const { return (flags & I_SWAPOPS) != 0; }
@@ -113,15 +117,13 @@ struct opcode_t
   int size(void) const
   {
     int n = bits[opcode_size];
-    if ( op1 != O_null )
-      n += bits[op1_size];
-    if ( op2 != O_null )
-      n += bits[op2_size];
+    if ( op1 != O_null )   n += bits[op1_size];
+    if ( op2 != O_null )   n += bits[op2_size];
     return n;
   }
 
   static void check(void);
-  static const struct opcode_t *find(int *_data);
+  static const struct opcode_t * find(int *_data);
 };
 
 // FR opcodes :
@@ -172,13 +174,13 @@ static const struct opcode_t opcodes[] =
   { fr_div4s,     0x9F70,     S_16,   O_null,         0,      O_null,     0,          0         },
   { fr_lsl,       0xB6,       S_8,    O_gr,           S_4,    O_gr,       S_4,        0         },
   { fr_lsl,       0xB4,       S_8,    O_imm,          S_4,    O_gr,       S_4,        0         },
-  { fr_lsl2,      0xB5,       S_8,    O_imm,          S_4,    O_gr,       S_4,        0         },
+  { fr_lsl2,      0xB5,       S_8,    O_imm,          S_4,    O_gr,       S_4,        I_IMM_16  },
   { fr_lsr,       0xB2,       S_8,    O_gr,           S_4,    O_gr,       S_4,        0         },
   { fr_lsr,       0xB0,       S_8,    O_imm,          S_4,    O_gr,       S_4,        0         },
-  { fr_lsr2,      0xB1,       S_8,    O_imm,          S_4,    O_gr,       S_4,        0         },
+  { fr_lsr2,      0xB1,       S_8,    O_imm,          S_4,    O_gr,       S_4,        I_IMM_16  },
   { fr_asr,       0xBA,       S_8,    O_gr,           S_4,    O_gr,       S_4,        0         },
   { fr_asr,       0xB8,       S_8,    O_imm,          S_4,    O_gr,       S_4,        0         },
-  { fr_asr2,      0xB9,       S_8,    O_imm,          S_4,    O_gr,       S_4,        0         },
+  { fr_asr2,      0xB9,       S_8,    O_imm,          S_4,    O_gr,       S_4,        I_IMM_16  },
   // fr_ldi_32 not here (considered as special)
   // fr_ldi_20 not here (considered as special)
   { fr_ldi_8,     0x0C,       S_4,    O_imm,          S_8,    O_gr,       S_4,        0         },
@@ -189,12 +191,15 @@ static const struct opcode_t opcodes[] =
   { fr_ld,        0x70,       S_12,   O_r15ip,        S_0,    O_gr,       S_4,        0         },
   { fr_ld,        0x78,       S_12,   O_r15ip,        S_0,    O_dr,       S_4,        0         },
   { fr_ld,        0x790,      S_16,   O_r15ip,        S_0,    O_ps,       S_0,        0         },
-  { fr_lduh,      0x05,       S_8,    O_gri,          S_4,    O_gr,       S_4,        0         },
-  { fr_lduh,      0x01,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        0         },
-  { fr_lduh,      0x04,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_IMM_2   },
-  { fr_ldub,      0x06,       S_8,    O_gri,          S_4,    O_gr,       S_4,        0         },
-  { fr_ldub,      0x02,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        0         },
-  { fr_ldub,      0x06,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        0         },
+  { fr_lduh,      0x05,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_MEM_16  },
+  { fr_lduh,      0x01,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_MEM_16  },
+  { fr_lduh,      0x04,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_MEM_16|I_IMM_2   },
+  { fr_ldub,      0x06,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_MEM_8   },
+  { fr_ldub,      0x02,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_MEM_8   },
+  { fr_ldub,      0x06,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_MEM_8   },
+//  { fr_srch0,     0x97C,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
+//  { fr_srch1,     0x97D,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
+//  { fr_srchc,     0x97E,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
   { fr_st,        0x14,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_SWAPOPS },
   { fr_st,        0x10,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_SWAPOPS },
   { fr_st,        0x03,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_SWAPOPS|I_IMM_4 },
@@ -202,12 +207,12 @@ static const struct opcode_t opcodes[] =
   { fr_st,        0x170,      S_12,   O_gr,           S_4,    O_r15im,    S_0,        0         },
   { fr_st,        0x178,      S_12,   O_dr,           S_4,    O_r15im,    S_0,        0         },
   { fr_st,        0x1790,     S_16,   O_ps,           S_0,    O_r15im,    S_0,        0         },
-  { fr_sth,       0x15,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_SWAPOPS },
-  { fr_sth,       0x11,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_SWAPOPS },
-  { fr_sth,       0x05,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_SWAPOPS|I_IMM_2 },
-  { fr_stb,       0x16,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_SWAPOPS },
-  { fr_stb,       0x12,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_SWAPOPS },
-  { fr_stb,       0x07,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_SWAPOPS },
+  { fr_sth,       0x15,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_MEM_16|I_SWAPOPS },
+  { fr_sth,       0x11,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_MEM_16|I_SWAPOPS },
+  { fr_sth,       0x05,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_MEM_16|I_SWAPOPS|I_IMM_2 },
+  { fr_stb,       0x16,       S_8,    O_gri,          S_4,    O_gr,       S_4,        I_MEM_8|I_SWAPOPS },
+  { fr_stb,       0x12,       S_8,    O_r13_gr_i,     S_4,    O_gr,       S_4,        I_MEM_8|I_SWAPOPS },
+  { fr_stb,       0x07,       S_4,    O_r14_imm8_i,   S_8,    O_gr,       S_4,        I_MEM_8|I_SWAPOPS },
   { fr_mov,       0x8B,       S_8,    O_gr,           S_4,    O_gr,       S_4,        0         },
   { fr_mov,       0xB7,       S_8,    O_dr,           S_4,    O_gr,       S_4,        0         },
   { fr_mov,       0x171,      S_12,   O_ps,           S_0,    O_gr,       S_4,        0         },
@@ -280,21 +285,21 @@ static const struct opcode_t opcodes[] =
   { fr_stilm,     0x87,       S_8,    O_imm,          S_8,    O_null,     0,          0         },
   { fr_addsp,     0xA3,       S_8,    O_imm,          S_8,    O_null,     0,          0         },
   { fr_extsb,     0x978,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
-  { fr_extub,     0x979,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
-  { fr_extsh,     0x97A,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
-  { fr_extuh,     0x97B,      S_12,   O_gr,           S_4,    O_null,     0,          0         },
+  { fr_extub,     0x979,      S_12,   O_gr,           S_4,    O_null,     0,          I_MEM_8   },
+  { fr_extsh,     0x97A,      S_12,   O_gr,           S_4,    O_null,     0,          I_MEM_16  },
+  { fr_extuh,     0x97B,      S_12,   O_gr,           S_4,    O_null,     0,          I_MEM_16  },
   { fr_ldm0,      0x8C,       S_8,    O_reglist,      S_8,    O_null,     0,          0         },
   { fr_ldm1,      0x8D,       S_8,    O_reglist,      S_8,    O_null,     0,          0         },
   { fr_stm0,      0x8E,       S_8,    O_reglist,      S_8,    O_null,     0,          0         },
   { fr_stm1,      0x8F,       S_8,    O_reglist,      S_8,    O_null,     0,          0         },
-  { fr_enter,     0x0F,       S_8,    O_imm,          S_8,    O_null,     0,          I_IMM_4   },
+  { fr_enter,     0x0F,       S_8,    O_imm,          S_8,    O_null,     0,          /*I_IMM_4 handled elsewhere*/  },
   { fr_leave,     0x9F90,     S_16,   O_null,         0,      O_null,     0,          0         },
   { fr_xchb,      0x8A,       S_8,    O_gri,          S_4,    O_gr,       S_4,        0         }
 };
 
 void opcode_t::check(void)
 {
-  for ( int i = 0; i < qnumber(opcodes); i++ )
+  for (int i = 0; i < qnumber(opcodes); i++)
   {
     int n = opcodes[i].size();
 //  if ( n != 16 && n != 32 )
@@ -393,6 +398,14 @@ static void set_imm(op_t &op, int imm, char d_typ)
   op.dtyp = d_typ;
 }
 
+// fill an operand as an immediate value.
+static void set_imm_notrunc(op_t &op, int imm, char d_typ)
+{
+  op.type = o_imm;
+  op.value = imm;
+  op.dtyp = d_typ;
+}
+
 // fill an operand as a phrase.
 static void set_phrase(op_t &op, int type, int val, char d_typ)
 {
@@ -424,22 +437,20 @@ static void set_rel(op_t &op, int addr, char d_typ)
   int raddr;
   switch ( d_typ ) /* ugly but functional */
   {
-    case dt_byte:
-      raddr = ((signed char) addr);
-      break;
+  case dt_byte:
+    raddr = ((signed char) addr);
+    break;
 
-    case dt_word:
-      raddr = ((signed short) addr);
-      break;
+  case dt_word:
+    raddr = ((signed short) addr);
+    break;
 
-    default:
-      INTERR(10015);
+  default:
+    INTERR(10015);
   }
   op.addr = cmd.ip + 2 + (raddr * 2);
-#if defined(__DEBUG__)
-  msg("0x%a = 0x%a + 2 + ((signed) 0x%X) * 2)\n", op.addr, cmd.ip, addr);
-#endif /* __DEBUG__ */
-  op.dtyp = dt_code;
+  op.dtyp = dt_code;  
+  //msg("0x%a set_rel: 0x%a = 0x%a + 2 + ((signed) 0x%X) * 2)\n", cmd.ip, op.addr, cmd.ip, addr);
 }
 
 // fill an operand as a reglist
@@ -450,21 +461,36 @@ static void set_reglist(op_t &op, int list)
   op.dtyp = dt_byte;  // list is coded in a byte
 }
 
+static char get_fr_dtyp(int flags, char defaultval)
+{
+  if( (flags & I_MEM_8) != 0 )
+    return dt_byte;
+  if( (flags & I_MEM_16) != 0 )
+    return dt_word;
+  if( (flags & I_MEM_32) != 0 )
+    return dt_dword;
+
+  return defaultval;
+}
+
 static void set_displ(op_t &op, int reg, int imm, int flag, int local_flag)
 {
   op.type = o_displ;
-  if ( reg != -1 )
-    op.reg = (uint16)get_gr(reg);
+
+  if ( reg != -1) op.reg = (uint16)get_gr(reg );
   if ( imm != -1 )
   {
     int mul = 1;
-    if ( local_flag & I_IMM_2 )
-      mul = 2;
-    if ( local_flag & I_IMM_4 )
-      mul = 4;
+    if ( local_flag & I_IMM_2 ) mul = 2;
+    if ( local_flag & I_IMM_4 ) mul = 4;
+    if(flag == OP_DISPL_IMM_R14)
+    {
+      imm |= (imm & 0x80) ? (~0xff) : 0;
+    }
+
     op.value = ((unsigned) imm) * mul;
   }
-  op.dtyp = dt_byte;
+  op.dtyp = get_fr_dtyp(local_flag, dt_dword);
   op.specflag1 |= flag;
 }
 
@@ -484,39 +510,6 @@ static void adjust_data(int size, int *data)
   *data = new_data;
 }
 
-/*
-static void prepare_data(int size, int *data) {
-    QASSERT(10008, data != NULL);
-    int new_data = 0;
-    switch ( size ) {
-        case S_0:
-        case S_4:
-            new_data = *data;
-            break;
-
-        case S_5:
-        case S_8:
-            new_data |= (*data & 0x00F0) >> 4;
-            new_data |= (*data & 0x000F) << 4;
-            break;
-
-        case S_11:
-        case S_12:
-            new_data |= (*data & 0x0F00) >> 8;
-            new_data |= (*data & 0x00F0) >> 0;
-            new_data |= (*data & 0x000F) << 8;
-            break;
-
-        case S_16:
-            new_data |= (*data & 0xF000) >> 12;
-            new_data |= (*data & 0x0F00) >> 4;
-            new_data |= (*data & 0x00F0) << 4;
-            new_data |= (*data & 0x000F) << 12;
-            break;
-    }
-    *data = new_data;
-}*/
-
 #define SWAP_IF_BYTE(data)          \
     do                              \
     {                               \
@@ -533,16 +526,16 @@ static void prepare_data(int size, int *data) {
 // defines some shortcuts.
 //
 
-#define __set_gr(op, reg)               set_reg(op, reg, dt_byte)
-#define set_gr(op, reg)                 __set_gr(op, get_gr(reg))
+//#define __set_gr(op, reg)               set_reg(op, reg, dt_byte)
+//#define set_gr(op, reg)                 __set_gr(op, get_gr(reg))
 #define __set_dr(op, reg)               set_reg(op, reg, dt_word)
 #define set_dr(op, reg)                 __set_dr(op, get_dr(reg))
 #define __set_cr(op, reg)               set_reg(op, reg, dt_word)
 #define set_cr(op, reg)                 __set_cr(op, get_cr(reg))
 
-#define set_gri(op, reg)                set_phrase(op, fIGR, get_gr(reg), dt_byte)
-#define set_grip(op, reg)               set_phrase(op, fIGRP, get_gr(reg), dt_byte)
-#define set_grim(op, reg)               set_phrase(op, fIGRM, get_gr(reg), dt_byte)
+#define set_gri(op, reg, flags)                set_phrase(op, fIGR, get_gr(reg), get_fr_dtyp(flags, dt_dword))
+#define set_grip(op, reg, flags)               set_phrase(op, fIGRP, get_gr(reg), get_fr_dtyp(flags, dt_dword))
+#define set_grim(op, reg, flags)               set_phrase(op, fIGRM, get_gr(reg), get_fr_dtyp(flags, dt_dword))
 #define set_diri(op, addr)              set_phrase(op, fIRA, addr, dt_word)
 #define set_r13_gr_i(op, reg)           set_phrase(op, fR13RI, get_gr(reg), dt_byte)
 #define fill_op1(data, opc)             fill_op(data, cmd.Op1, opc->op1, opc->op1_size, opc->flags)
@@ -550,96 +543,108 @@ static void prepare_data(int size, int *data) {
 //#define set_displ_gr(op, gr, f1)        set_displ(op, gr, -1, f1, 0)
 #define set_displ_imm(op, imm, f1, f2)  set_displ(op, -1, imm, f1, f2)
 
+
 static void fill_op(int data, op_t &op, int operand, int operand_size, int flags)
 {
   data &= masks[operand_size];
   //prepare_data(operand_size, &data);
   switch ( operand )
   {
-    case O_gr:           // general register                         Ri
-      QASSERT(10009, operand_size == S_4);
-      set_gr(op, data);
-      break;
+  case O_gr:           // general register                         Ri
+    QASSERT(10009, operand_size == S_4);
+    set_reg(op, get_gr(data), get_fr_dtyp(flags, dt_dword));
+    break;
 
-    case O_gri:          // general register indirect                @Ri
-      QASSERT(10010, operand_size == S_4);
-      set_gri(op, data);
-      break;
+  case O_gri:          // general register indirect                @Ri
+    QASSERT(10010, operand_size == S_4);
+    set_gri(op, data, flags);
+    break;
 
-    case O_grip:          // general register indirect                @Ri
-      QASSERT(10011, operand_size == S_4);
-      set_grip(op, data);
-      break;
+  case O_grip:          // general register indirect                @Ri
+    QASSERT(10011, operand_size == S_4);
+    set_grip(op, data, flags);
+    break;
 
-    case O_r13_gr_i:     // indirect r13 + general register          @(R13, Ri)
-      set_r13_gr_i(op, data);
-      break;
+  case O_r13_gr_i:     // indirect r13 + general register          @(R13, Ri)
+    set_r13_gr_i(op, data);
+    break;
 
-    case O_r14_imm8_i:   // indirect r14 + 8 bits immediate value    @(R14, imm)
+  case O_r14_imm8_i:   // indirect r14 + 8 bits immediate value    @(R14, imm)
+    SWAP_IF_BYTE(data);
+    set_displ_imm(op, data, OP_DISPL_IMM_R14, flags);
+    break;
+
+  case O_r15_imm4_i:   // indirect r15 + 4 bits immediate value    @(R15, imm)
+    SWAP_IF_BYTE(data);
+    set_displ_imm(op, data, OP_DISPL_IMM_R15, flags);
+    break;
+
+  case O_r15ip:        // indirect r15 post-increment              @R15+
+    set_grip(op, rR15, flags);
+    break;
+
+  case O_r15im:        // indirect r15 pre-decrement               @-R15
+    set_grim(op, rR15, flags);
+    break;
+
+  case O_r13:          // register r13                             R13
+    set_reg(cmd.Op4, rR13, dt_dword);
+    break;
+
+  case O_r13ip:        // indirect r13 post-increment              @R13+
+    set_grip(op, rR13, flags);
+    break;
+
+  case O_dr:           // dedicated register                       Rs
+    set_dr(op, data);
+    break;
+
+  case O_ps:           // program status register (PS)             PS
+    __set_dr(op, rPS);
+    break;
+
+  case O_imm:          // immediate value                          #i
+    {
+      bool notrunc = false;
       SWAP_IF_BYTE(data);
-      set_displ_imm(op, data, OP_DISPL_IMM_R14, flags);
-      break;
+      if ( cmd.itype == fr_enter ) { data = ((unsigned) data ) * 4; notrunc = true; }
+      if ( cmd.itype == fr_addsp) { data = ((signed) data ) * 4; notrunc = true; }
+      if ( flags & I_IMM_16 ) data += 16;
 
-    case O_r15_imm4_i:   // indirect r15 + 4 bits immediate value    @(R15, imm)
-      SWAP_IF_BYTE(data);
-      set_displ_imm(op, data, OP_DISPL_IMM_R15, flags);
-      break;
+      if ( cmd.itype == fr_add2 || cmd.itype == fr_addn2 || cmd.itype == fr_cmp2 )   
+      {
+        data |= ~0xF; // sign extend
+        op.specflag1 = OP_IMM_SIGNED; 
+        notrunc = true;
+      }
 
-    case O_r15ip:        // indirect r15 post-increment              @R15+
-      set_grip(op, rR15);
-      break;
+      if( notrunc )
+        set_imm_notrunc(op, data, dtypes[operand_size]);
+      else
+        set_imm(op, data, dtypes[operand_size]);
+    }
+    break;
 
-    case O_r15im:        // indirect r15 pre-decrement               @-R15
-      set_grim(op, rR15);
-      break;
+  case O_diri:         // indirect direct value                    @i
+    SWAP_IF_BYTE(data);
+    if ( cmd.itype == fr_dmov )   data *= 4;
+    if ( cmd.itype == fr_dmovh )  data *= 2;
+    set_diri(op, data);
+    op.specflag1 |= flags;
+    break;
 
-    case O_r13:          // register r13                             R13
-      __set_gr(op, rR13);
-      break;
+  case O_rel:          // relative value                           label5
+    SWAP_IF_BYTE(data);
+    set_rel(op, data, dtypes[operand_size]);
+    break;
 
-    case O_r13ip:        // indirect r13 post-increment              @R13+
-      set_grip(op, rR13);
-      break;
+  case O_reglist:      // register list                            (R0, R1, R2, ...)
+    SWAP_IF_BYTE(data);
+    set_reglist(op, data);
+    break;
 
-    case O_dr:           // dedicated register                       Rs
-      set_dr(op, data);
-      break;
-
-    case O_ps:           // program status register (PS)             PS
-      __set_dr(op, rPS);
-      break;
-
-    case O_imm:          // immediate value                          #i
-      SWAP_IF_BYTE(data);
-      if ( cmd.itype == fr_enter )
-        data *= 4;
-      if ( cmd.itype == fr_addsp )
-        data = ((signed) data) * 4;
-      set_imm(op, data, dtypes[operand_size]);
-      break;
-
-    case O_diri:         // indirect direct value                    @i
-      SWAP_IF_BYTE(data);
-      if ( cmd.itype == fr_dmov )
-        data *= 4;
-      if ( cmd.itype == fr_dmovh )
-        data *= 2;
-      set_diri(op, data);
-      op.specflag1 |= flags;
-      break;
-
-    case O_rel:          // relative value                           label5
-      SWAP_IF_BYTE(data);
-      set_rel(op, data, dtypes[operand_size]);
-      break;
-
-    case O_reglist:      // register list                            (R0, R1, R2, ...)
-      SWAP_IF_BYTE(data);
-      set_reglist(op, data);
-      break;
-
-    case O_null:         // null opcode
-      INTERR(10016);
+  case O_null:         // null opcode
+    INTERR(10016);
   }
 }
 
@@ -695,7 +700,7 @@ static bool ana_special(int data)
   {
     cmd.itype = fr_ldi_20;
     data = (data << 8) | ua_next_byte();
-    set_gr(cmd.Op2, data & 0x000F);
+    set_reg(cmd.Op2, get_gr(data & 0x000F), dt_dword);
     set_imm(cmd.Op1, ua_next_word() | ((data & 0x00F0) << 12), dt_dword);
     return true;
   }
@@ -707,7 +712,7 @@ static bool ana_special(int data)
   {
     cmd.size++;
     cmd.itype = fr_ldi_32;
-    set_gr(cmd.Op2, data & 0x000F);
+    set_reg(cmd.Op2, get_gr(data & 0x000F), dt_dword);
     set_imm(cmd.Op1, ua_next_long(), dt_dword);
     return true;
   }
@@ -746,7 +751,7 @@ static bool ana_special(int data)
       // copld
       case 0xD:
         cmd.itype = fr_copld;
-        set_gr(cmd.Op3, (word & 0x00F0) >> 4);
+        set_reg(cmd.Op3, get_gr((word & 0x00F0) >> 4), dt_dword);
         set_cr(cmd.Op4, word & 0x000F);
         break;
 
@@ -754,14 +759,14 @@ static bool ana_special(int data)
       case 0xE:
         cmd.itype = fr_copst;
         set_cr(cmd.Op3, (word & 0x00F0) >> 4);
-        set_gr(cmd.Op4, word & 0x000F);
+        set_reg(cmd.Op4, get_gr(word & 0x000F), dt_dword);
         break;
 
       // copsv
       case 0xF:
         cmd.itype = fr_copsv;
         set_cr(cmd.Op3, (word & 0x00F0) >> 4);
-        set_gr(cmd.Op4, word & 0x000F);
+        set_reg(cmd.Op4, get_gr(word & 0x000F), dt_dword);
         break;
     }
     if ( cmd.itype != fr_null )

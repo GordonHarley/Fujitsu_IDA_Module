@@ -67,12 +67,12 @@ static void out_reglist(const op_t &op)
   out_symbol('(');
   if ( left )
   {
-    for ( int i = 0, bit = 128; bit != 0; bit >>= 1, i++ )
+    for (int i = 0, bit = 128; bit != 0; bit >>= 1, i++)
       out_reg_if_bit(regs[i], op.value, bit);
   }
   else
   {
-    for ( int i = 7, bit = 1; bit <= 128; bit <<= 1, i-- )
+    for (int i = 7, bit = 1; bit <= 128; bit <<= 1, i--)
       out_reg_if_bit(regs[i], op.value, bit);
   }
   out_symbol(')');
@@ -151,7 +151,16 @@ bool idaapi outop(op_t &op)
         if ( port != NULL )
           out_line(port->name, COLOR_IMPNAME);
         else // otherwise, simply print the value
-          out_imm(op);
+        {
+          out_symbol('#');
+          int flags = OOFW_IMM;
+          if( op_imm_signed(op) )
+          {
+            flags |= OOF_SIGNED;
+          }
+
+          OutValue(op, flags );
+        }
       }
       break;
 
@@ -208,7 +217,7 @@ bool idaapi outop(op_t &op)
         out_reg(rR14);
         out_symbol(',');
         OutChar(' ');
-        out_imm(op, true);
+        OutValue(op, OOFW_IMM | OOF_SIGNED);
       }
       // @(R15, #i)
       else if ( op_displ_imm_r15(op) )
@@ -216,7 +225,7 @@ bool idaapi outop(op_t &op)
         out_reg(rR15);
         out_symbol(',');
         OutChar(' ');
-        out_imm(op, true);
+        OutValue(op, OOFW_IMM );
       }
       else
         INTERR(10020);
@@ -254,7 +263,9 @@ void idaapi out(void)
   postfix[0] = '\0';
 
   if ( cmd.auxpref & INSN_DELAY_SHOT )
+  {
     qstrncpy(postfix, ":D", sizeof(postfix));
+  }
   OutMnem(8, postfix);
 
   for ( int i=0; i < 4; i++ )
@@ -272,9 +283,10 @@ void idaapi out(void)
 
   // output a character representation of the immediate values
   // embedded in the instruction as comments
-  for ( int i=0; i < 4; i++ )
-    if ( isVoid(cmd.ea, uFlag, i) )
-      OutImmChar(cmd.Operands[i]);
+  if ( isVoid(cmd.ea,uFlag,0)) OutImmChar(cmd.Op1 );
+  if ( isVoid(cmd.ea,uFlag,1)) OutImmChar(cmd.Op2 );
+  if ( isVoid(cmd.ea,uFlag,2)) OutImmChar(cmd.Op3 );
+  if ( isVoid(cmd.ea,uFlag,3)) OutImmChar(cmd.Op4 );
 
   term_output_buffer();                   // terminate the output string
   gl_comm = 1;                            // ask to attach a possible user-
