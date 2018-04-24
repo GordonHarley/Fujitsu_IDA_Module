@@ -2,7 +2,6 @@
 #include "fr.hpp"
 #include <srarea.hpp>
 
-//#define IDA65
 
 // The netnode helper.
 // Using this node we will save current configuration information in the
@@ -61,17 +60,38 @@ static const char *const RegNames[] =
   "mdl",       // multiplication/division register (LOW)
   "mdh",       // multiplication/division register (HIGH)
 
+  // FR80 / 81+
+  "bp",
+  "fcr",
+  "esr",
+
   // system use dedicated registers
-  "reserved6",
-  "reserved7",
-  "reserved8",
   "reserved9",
   "reserved10",
   "reserved11",
   "reserved12",
   "reserved13",
   "reserved14",
-  "reserved15",
+  "dbr",
+
+
+  // FR81 (80?) and up floating point registers
+  "fr0",
+  "fr1",
+  "fr2",
+  "fr3",
+  "fr4",
+  "fr5",
+  "fr6",
+  "fr7",
+  "fr8",
+  "fr9",
+  "fr10",
+  "fr11",
+  "fr12",
+  "fr13",
+  "fr14",
+  "fr15",
 
   // these 2 registers are required by the IDA kernel :
 
@@ -130,17 +150,37 @@ const char *const savedRegNames[] =
   "sMdl",       // multiplication/division register (LOW)
   "sMdh",       // multiplication/division register (HIGH)
 
+  // FR80 / 81
+  "sBP",        // Base pointer
+  "sFCR",       // FPU control
+  "sESR",       // Exception status
+
   // system use dedicated registers
-  "reserved6",
-  "reserved7",
-  "reserved8",
-  "reserved9",
+  "reserved9"
   "reserved10",
   "reserved11",
   "reserved12",
   "reserved13",
   "reserved14",
-  "reserved15",
+  "sDBR",       // Debug register
+
+  // FR81 (80?) and up floating point registers
+  "sFR0",
+  "sFR1",
+  "sFR2",
+  "sFR3",
+  "sFR4",
+  "sFR5",
+  "sFR6",
+  "sFR7",
+  "sFR8",
+  "sFR9",
+  "sFR10",
+  "sFR11",
+  "sFR12",
+  "sFR13",
+  "sFR14",
+  "sFR15",
 
   // these 2 registers are required by the IDA kernel :
 
@@ -404,8 +444,8 @@ static void idaapi gnu_func_header(func_t *pfn)
   {
     const char *name = namebuf.begin();
     if ( is_public_name(pfn->startEA) && ash.a_public != NULL )
-      printf_line(inf.indent, COLSTR("%s %s", SCOLOR_ASMDIR), ash.a_public, name);
-    printf_line(inf.indent, COLSTR(".type %s, @function", SCOLOR_ASMDIR), name);
+      printf_line(0, COLSTR("%s %s", SCOLOR_ASMDIR), ash.a_public, name);
+    printf_line(0, COLSTR(".type %s, @function", SCOLOR_ASMDIR), name);
     printf_line(0, COLSTR("%s:", SCOLOR_ASMDIR), name);
   }
 }
@@ -417,7 +457,7 @@ static void idaapi gnu_func_footer(func_t *pfn)
   if ( fr_get_func_name(&namebuf, pfn) )
   {
     const char *name = namebuf.begin();
-    printf_line(inf.indent, COLSTR(".size %s, .-%s", SCOLOR_ASMDIR), name, name);
+    printf_line(0, COLSTR(".size %s, .-%s", SCOLOR_ASMDIR), name, name);
   }
 }
 

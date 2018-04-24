@@ -108,9 +108,58 @@ enum nameNum ENUM_SIZE(uint16)
     fr_enter,               // enter function
     fr_leave,               // leave function
     fr_xchb,                // exchange byte data
-    //fr_srch0,               // search first zero bit position distance from MSB
-    //fr_srch1,               // search first one bit position distance from MSB
-    //fr_srchc,               // search first bit value change position distance from MSB
+    // FR65+
+    fr_srch0,               // search first zero bit position distance from MSB
+    fr_srch1,               // search first one bit position distance from MSB
+    fr_srchc,               // search first bit value change position distance from MSB
+    // FR80+
+
+    // FR81+
+    fr_fabss,
+    fr_fadds,
+    fr_fbn,                 // float branch never
+    fr_fba,                 // float branch always
+    fr_fbne,                // float branch not equal
+    fr_fbe,                 // float branch equal
+    fr_fblg,                // float branch less or greater
+    fr_fbue,                // float branch unordered or equal
+    fr_fbul,                // float branch unordered or less
+    fr_fbge,                // float branch greater or equal
+    fr_fbl,                 // float branch less
+    fr_fbuge,               // float branch unordered or greater or equal
+    fr_fbug,                // float branch unordered or greater
+    fr_fble,                // float branch less or equal
+    fr_fbg,                 // float branch greater
+    fr_fbule,               // float branch unordered or less or equal
+    fr_fbu,                 // float branch unordered
+    fr_fbo,                 // float branch ordered
+    fr_fcmps,               // floating point compare
+    fr_fdivs,               // floating point divide
+    fr_fitos,               // 32 bit integer to float
+    fr_fld,                 // float load (Various indexing methods as ld)
+    fr_fldbp,               // load from @(BP, #udisp18)
+    fr_fldm,                // Load multiple single precision floats from @R15+
+    fr_fmadds,              // Fused multiply-add
+    fr_fmovs,               // Mov between fpu regs
+    fr_fmsubs,              // Fused multiply subtract
+    fr_fmuls,               // Multiply floats
+    fr_fnegs,               // Negative of float
+    fr_fsqrts,              // Square root
+    fr_fst,                 // Store a float (Various indexing  methods as st)
+    fr_fstbp,               // Store a float @(BP, #udisp18)
+    fr_fstm,                // Store multiple floats.  Can be anywhere from 1 to all 16
+    fr_fstoi,               // Convert single to integer in reg
+    fr_fsubs,               // Subtract
+    fr_mov_to_fpr,          // mov from Rj to FRi
+    fr_mov_from_fpr,        // mov from FRj to Ri
+    fr_lcall,               // long call (21 bit sign extended relative) and :D version
+    fr_ld_bp,               // ld @(BP, #udisp18 (#udisp16 * 4)), Ri
+    fr_ldub_bp,             // ld BYTE @(BP, #udisp16), Ri    
+    fr_lduh_bp,             // ld WORD @(BP, #udisp17 (#udisp16 * 2)), Ri
+    fr_st_bp,
+    fr_stb_bp,
+    fr_sth_bp,
+
     fr_last                 // last instruction
 };
 

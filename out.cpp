@@ -49,6 +49,8 @@ static void out_reglist(const op_t &op)
   static const uint16 regs_stm0[] = { rR0,  rR1,  rR2,  rR3,  rR4,  rR5,  rR6,  rR7  };
   static const uint16 regs_ldm1[] = { rR15, rR14, rR13, rR12, rR11, rR10, rR9,  rR8  };
   static const uint16 regs_stm1[] = { rR8,  rR9,  rR10, rR11, rR12, rR13, rR14, rR15 };
+  static const uint16 regs_fpu[] = { rFR0, rFR1, rFR2, rFR3, rFR4, rFR5, rFR6, rFR7,
+                                     rFR8, rFR9, rFR10, rFR11, rFR12, rFR13, rFR14, rFR15 };
   const uint16 *regs;
   bool left;
 
@@ -58,6 +60,11 @@ static void out_reglist(const op_t &op)
     case fr_stm0:   regs = regs_stm0; left = true;  break;
     case fr_ldm1:   regs = regs_ldm1; left = false; break;
     case fr_stm1:   regs = regs_stm1; left = true;  break;
+    case fr_fldm:   
+      regs = regs_fpu;
+      left = false;
+      break;
+
     default:
       INTERR(10018);
   }
@@ -99,7 +106,7 @@ void idaapi footer(void)
       APPCHAR(p, end, ' ');
       APPEND(p, end, name.begin());
     }
-    MakeLine(buf, inf.indent);
+    MakeLine(buf);
   }
   else
   {
@@ -179,7 +186,7 @@ bool idaapi outop(op_t &op)
           break;
 
         case fIRA:       // indirect relative address
-          OutValue(op, OOF_ADDR | OOFS_NOSIGN);
+          OutValue(op, OOF_ADDR /* | OOFS_NOSIGN */);
           break;
 
         case fIGRP:      // indirect general register with post-increment
@@ -270,7 +277,8 @@ void idaapi out(void)
 
   for ( int i=0; i < 4; i++ )
   {
-    if ( cmd.Operands[i].type != o_void )
+    // Don't output operands that are marked as not shown
+    if ( cmd.Operands[i].type != o_void && cmd.Operands[i].shown() )
     {
       if ( i != 0 )
       {

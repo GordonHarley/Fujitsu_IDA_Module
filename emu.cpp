@@ -363,6 +363,7 @@ void search_stack_vars()
 }
 
 
+
 // Emulate an instruction.
 int idaapi emu(void)
 {

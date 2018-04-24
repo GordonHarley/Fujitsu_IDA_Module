@@ -75,10 +75,12 @@ enum fr_registers {
     rMDL,       // multiplication/division register (LOW)
     rMDH,       // multiplication/division register (HIGH)
 
+    // These aren't used on FR65 and below.
+    rBP,        // Base pointer for shorter addressing modes
+    rFCR,       // FPU control register
+    rESR,       // Exception status register
+
     // system use dedicated registers
-    rReserved6,
-    rReserved7,
-    rReserved8,
     rReserved9,
     rReserved10,
     rReserved11,
@@ -86,9 +88,28 @@ enum fr_registers {
     rReserved13,
     rReserved14,
     rReserved15,
+    rDBR,       // Debug register
 
+
+    // Floating point registers (FR81+)
+    rFR0,
+    rFR1,
+    rFR2,
+    rFR3,
+    rFR4,
+    rFR5,
+    rFR6,
+    rFR7,
+    rFR8,
+    rFR9,
+    rFR10,
+    rFR11,
+    rFR12,
+    rFR13,
+    rFR14,
+    rFR15,
+    
     // these 2 registers are required by the IDA kernel :
-
     rVcs,
     rVds
 };
@@ -109,6 +130,7 @@ enum fr_phrases {
 
 // flags for insn.auxpref
 #define INSN_DELAY_SHOT        0x00000001           // postfix insn mnem by ":D"
+#define INSN_BAD_DELAY         0x00000002           // This is a bad instruction for delay slots
 
 // flags for opt.specflag1
 #define OP_DISPL_IMM_R14       0x00000001           // @(R14, #i)
@@ -116,9 +138,13 @@ enum fr_phrases {
 #define OP_IMM_SIGNED          0x00000020           // IMM signed.
 #define OP_ADDR_R              0x00000010           // read-access to memory
 #define OP_ADDR_W              0x00000012           // write-access to memory
+#define OP_OFFSET_TBR          0x00000040           // Display an interrupt address relative to the TBR (default 0xFFC00)
+#define OP_DISPL_IMM_BP        0x00000080           // @(BP, #u)
 
 inline bool op_displ_imm_r14(const op_t &op) { return (op.specflag1 & OP_DISPL_IMM_R14) != 0; }
 inline bool op_displ_imm_r15(const op_t &op) { return (op.specflag1 & OP_DISPL_IMM_R15) != 0; }
+inline bool op_displ_imm_tbr(const op_t &op) { return (op.specflag1 & OP_OFFSET_TBR) != 0; }
+inline bool op_displ_imm_bp(const op_t &op) { return (op.specflag1 & OP_DISPL_IMM_BP) != 0; }
 inline bool op_imm_signed(const op_t &op) { return (op.specflag1 & OP_IMM_SIGNED) != 0; }
 
 // exporting our routines
